@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/dekatei/talegram-bot/buttons"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/joho/godotenv"
 )
@@ -37,10 +38,21 @@ func main() {
 		if update.Message == nil {
 			continue
 		}
+		switch update.Message.Text {
+		case "/start":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Добро пожаловать!")
+			msg.ReplyMarkup = buttons.MainMenu()
+			bot.Send(msg)
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		case "📅 Список занятий":
+			text, err := buttons.LessonsListMessage()
+			if err != nil {
+				text = "Ошибка при получении занятий."
+			}
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
 
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Привет, ты написал: "+update.Message.Text)
-		bot.Send(msg)
+		default:
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Выберите действие из меню."))
+		}
 	}
 }
