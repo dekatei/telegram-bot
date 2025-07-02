@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/dekatei/talegram-bot/buttons"
+	"github.com/dekatei/telegram-bot/buttons"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/joho/godotenv"
 )

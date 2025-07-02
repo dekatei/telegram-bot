@@ -3,7 +3,7 @@ package buttons
 import (
 	"fmt"
 
-	"github.com/dekatei/talegram-bot/base"
+	"github.com/dekatei/telegram-bot/base"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
