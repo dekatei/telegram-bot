@@ -4,17 +4,26 @@ import (
 	"log"
 	"os"
 
+	"github.com/dekatei/telegram-bot/base"
 	"github.com/dekatei/telegram-bot/buttons"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+
 	// Загружаем .env файл
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	dbFile := os.Getenv("DB_FILE")
+	err = base.InitDB(dbFile)
+	if err != nil {
+		log.Fatal("Ошибка инициализации базы данных:", err)
+	}
+
 	//получаем токен из .env файла
 	token := os.Getenv("TELEGRAM_TOKEN")
 	if token == "" {
@@ -38,6 +47,7 @@ func main() {
 		if update.Message == nil {
 			continue
 		}
+		log.Printf("Сообщение от %s: %s", update.Message.From.UserName, update.Message.Text)
 		switch update.Message.Text {
 		case "/start":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Добро пожаловать!")
@@ -50,7 +60,19 @@ func main() {
 				text = "Ошибка при получении занятий."
 			}
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
+		case "✅ Записаться":
+			text, err := buttons.RegisterMessage(update.Message.From.ID)
+			if err != nil {
+				text = "Ошибка при записи."
+			}
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
 
+		case "👤 Мои занятия":
+			text, err := buttons.MyLessonsMessage(update.Message.From.ID)
+			if err != nil {
+				text = "Ошибка при получении занятий."
+			}
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
 		default:
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Выберите действие из меню."))
 		}
