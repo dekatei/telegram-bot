@@ -10,6 +10,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const adminID int = 288848928
+
 func main() {
 
 	// Загружаем .env файл
@@ -53,7 +55,36 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Добро пожаловать!")
 			msg.ReplyMarkup = buttons.MainMenu()
 			bot.Send(msg)
+			//log.Printf("Ваш Telegram ID: %d", update.Message.From.ID)
+		case "Добавить новое время занятий":
+			if update.Message.From.ID != adminID {
+				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "⛔️ Доступ запрещён."))
+				break
+			}
 
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите название нового занятия:")
+			bot.Send(msg)
+
+			// Ждём следующее сообщение от админа
+			update2 := <-updates
+			name := update2.Message.Text
+
+			msg2 := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите описание занятия:")
+			bot.Send(msg2)
+			update3 := <-updates
+			title := update3.Message.Text
+
+			msg3 := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите дату и время занятия (например: 2025-07-08 15:00):")
+			bot.Send(msg3)
+			update4 := <-updates
+			date := update4.Message.Text
+
+			err := base.AddLesson(name, title, date)
+			if err != nil {
+				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Ошибка при добавлении занятия."))
+			} else {
+				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "✅ Занятие успешно добавлено!"))
+			}
 		case "📅 Список занятий":
 			text, err := buttons.LessonsListMessage()
 			if err != nil {
