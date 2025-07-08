@@ -8,17 +8,26 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func MainMenu() tgbotapi.ReplyKeyboardMarkup {
-	return tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
+const adminID int = 288848928
+
+func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
+	rows := [][]tgbotapi.KeyboardButton{
+		{
 			tgbotapi.NewKeyboardButton("📅 Список занятий"),
 			tgbotapi.NewKeyboardButton("✅ Записаться"),
-		),
-		tgbotapi.NewKeyboardButtonRow(
+		},
+		{
 			tgbotapi.NewKeyboardButton("❌ Отменить запись"),
 			tgbotapi.NewKeyboardButton("👤 Мои занятия"),
-		),
-	)
+		},
+	}
+
+	if userID == adminID {
+		rows = append(rows, tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("➕ Добавить занятие"),
+		))
+	}
+	return tgbotapi.NewReplyKeyboard(rows...)
 }
 
 func LessonsListMessage() (string, error) {

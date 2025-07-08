@@ -17,28 +17,9 @@ type Lesson struct {
 	Name  string
 	Title string
 	Date  string
+	State string
 }
 
-/*
-	func InitDB(path string) {
-		var err error
-		DB, err = sql.Open("sqlite3", path)
-		if err != nil {
-			log.Fatal("DB open error:", err)
-		}
-
-		createTable := `
-	    CREATE TABLE IF NOT EXISTS lessons (
-	        id INTEGER PRIMARY KEY AUTOINCREMENT,
-	        name TEXT,
-	        date TEXT
-	    );`
-		_, err = DB.Exec(createTable)
-		if err != nil {
-			log.Fatal("Create table error:", err)
-		}
-	}
-*/
 func InitDB(envDBFILE string) error {
 	var err error
 	var appPath string
@@ -72,7 +53,8 @@ func InitDB(envDBFILE string) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
        		name TEXT NOT NULL DEFAULT "",
 			title TEXT NOT NULL DEFAULT "",
-        	date TEXT NOT NULL DEFAULT "");`)
+        	date TEXT NOT NULL DEFAULT "",
+			state BOOLEAN);`)
 		if err != nil {
 			log.Fatal(err)
 			return err
