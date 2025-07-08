@@ -8,8 +8,9 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const adminID int = 288848928
+const AdminID int = 288848928
 
+// MainMenu возвращает главное меню с дополнительной кнопкой для администратора.
 func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 	rows := [][]tgbotapi.KeyboardButton{
 		{
@@ -22,7 +23,7 @@ func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 		},
 	}
 
-	if userID == adminID {
+	if userID == AdminID {
 		rows = append(rows, tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("➕ Добавить занятие"),
 		))
@@ -30,8 +31,9 @@ func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(rows...)
 }
 
+// LessonsListMessage возвращает список доступных занятий текстом.
 func LessonsListMessage() (string, error) {
-	lessons, err := base.GetAllLessons()
+	lessons, err := base.GetAvailableLessons()
 	if err != nil {
 		return "", err
 	}
@@ -48,25 +50,16 @@ func LessonsListMessage() (string, error) {
 	return msg, nil
 }
 
-func RegisterMessage(userID int) (string, error) {
-	lessons, err := base.GetAllLessons()
-	if err != nil || len(lessons) == 0 {
-		return "Нет доступных занятий.", err
-	}
-
-	// для простоты: записываем на первое занятие
-	selected := lessons[0]
-
-	err = base.RegisterUserToLesson(userID, selected.ID)
-	if err != nil {
-		return "Ошибка при записи на занятие.", err
-	}
-
-	return fmt.Sprintf("✅ Вы записаны на занятие: %s — %s", selected.Name, selected.Date), nil
-}
-
+// MyLessonsMessage возвращает список занятий конкретного пользователя.
 func MyLessonsMessage(userID int) (string, error) {
-	lessons, err := base.GetUserLessons(userID)
+	var lessons []base.Lesson
+	var err error
+	if userID == AdminID {
+		lessons, err = base.GetAdminLessons()
+	} else {
+		lessons, err = base.GetUserLessons(userID)
+	}
+
 	if err != nil {
 		return "Ошибка при получении ваших занятий.", err
 	}
