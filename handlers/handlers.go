@@ -18,7 +18,7 @@ func StartBot(bot *tgbotapi.BotAPI) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates, _ := bot.GetUpdatesChan(u)
-	
+
 	for update := range updates {
 		if update.CallbackQuery != nil {
 			HandleCallback(bot, update)
@@ -66,11 +66,10 @@ func StartBot(bot *tgbotapi.BotAPI) {
 					tgbotapi.NewInlineKeyboardButtonData(label, callbackData)))
 			}
 
-			msg := tgbotapi.NewMessage(chatID, "Выберите занятие для удаления:"))
+			msg := tgbotapi.NewMessage(chatID, "Выберите занятие для удаления:")
 			msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 			bot.Send(msg)
 
-			
 		case "📅 Список занятий":
 			text, err := buttons.LessonsListMessage()
 			if err != nil {
@@ -303,7 +302,7 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "❌ Неверный ID."))
 			return
 		}
-	
+
 		err = base.DeleteLesson(id)
 		if err != nil {
 			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "❌ Ошибка при удалении: "+err.Error()))
