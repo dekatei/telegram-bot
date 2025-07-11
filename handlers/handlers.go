@@ -52,7 +52,7 @@ func StartBot(bot *tgbotapi.BotAPI) {
 				bot.Send(tgbotapi.NewMessage(chatID, "⛔️ Только для администратора."))
 				break
 			}
-			lessons, err := base.GetAdminLessons()
+			lessons, err := base.GetAvailableLessons()
 			if err != nil || len(lessons) == 0 {
 				bot.Send(tgbotapi.NewMessage(chatID, "У вас нет записей."))
 				break
@@ -103,16 +103,22 @@ func formatDate(d time.Time) string {
 	return fmt.Sprintf("%02d %s", d.Day(), months[d.Month()-1])
 }
 
-// dateKeyboard возвращает клавиатуру выбора дня
+// dateKeyboard возвращает клавиатуру выбора дня с доступными уроками
 func dateKeyboard(prefix string) tgbotapi.InlineKeyboardMarkup {
+	dates, err := base.GetDatesWithAvailableLessons()
+	if err != nil || len(dates) == 0 {
+		return tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Нет доступных дат", "none"),
+			),
+		)
+	}
+
 	var rows [][]tgbotapi.InlineKeyboardButton
-
-	for i := 0; i < 7; i++ {
-		date := time.Now().AddDate(0, 0, i)
-		label := formatDate(date)
-		data := fmt.Sprintf("%s:%d", prefix, i)
-
-		btn := tgbotapi.NewInlineKeyboardButtonData(label, data)
+	for _, d := range dates {
+		//label := formatDate(d) // "09 июля"
+		data := fmt.Sprintf("%s:%s", prefix, d)
+		btn := tgbotapi.NewInlineKeyboardButtonData(d, data)
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
 	}
 
@@ -261,7 +267,7 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			}
 		}
 
-		result := "Результаты добавления занятий:\n" + strings.Join(messages, "\n")
+		result := "Добавлены занятия на " + date + " в :\n" + strings.Join(messages, "\n")
 		bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, result))
 		delete(AddState, userID)
 

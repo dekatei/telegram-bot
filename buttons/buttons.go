@@ -26,6 +26,7 @@ func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 	if userID == AdminID {
 		rows = append(rows, tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("➕ Добавить занятие"),
+			tgbotapi.NewKeyboardButton("➖ Удалить доступное занятие"),
 		))
 	}
 	return tgbotapi.NewReplyKeyboard(rows...)

@@ -6,6 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // или postgres
 )
 
+// SQL запросы от админа
 const textAdmin = "Получен запрос от админа "
 
 func AddLesson(name, title, date string) error {
@@ -21,7 +22,7 @@ func DeleteLesson(id int) error {
 }
 
 func GetAdminLessons() ([]Lesson, error) {
-	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 1")
+	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 1 ORDER BY date")
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,7 @@ import (
 // SQL запросы от учеников
 // получаем доступные для записи уроки
 func GetAvailableLessons() ([]Lesson, error) {
-	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 0")
+	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 0 ORDER BY date ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +25,29 @@ func GetAvailableLessons() ([]Lesson, error) {
 	}
 
 	return lessons, nil
+}
+
+func GetDatesWithAvailableLessons() ([]string, error) {
+	rows, err := DB.Query(`
+		SELECT DISTINCT date
+		FROM scheduler
+		WHERE state = 0
+		ORDER BY date ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dates []string
+	for rows.Next() {
+		var date string
+		if err := rows.Scan(&date); err != nil {
+			return nil, err
+		}
+		dates = append(dates, date)
+	}
+	return dates, nil
 }
 
 // добавляем ученика в таблицу с зарегистрированным уроком и устанавливаем статус недоступный урок в общей таблице
@@ -44,6 +67,7 @@ func GetUserLessons(userID int) ([]Lesson, error) {
 	FROM scheduler l
 	INNER JOIN registrations r ON r.lesson_id = l.id
 	WHERE r.user_id = ?
+	ORDER BY l.date ASC
 	`
 	rows, err := DB.Query(query, userID)
 	if err != nil {
