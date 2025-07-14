@@ -108,3 +108,15 @@ func GetLessonsByDate(date string) ([]Lesson, error) {
 	}
 	return lessons, nil
 }
+
+func CancelUserRegistration(userID, lessonID int) error {
+	_, err := DB.Exec(`
+		DELETE FROM registrations 
+		WHERE user_id = ? AND lesson_id = ?
+	`, userID, lessonID)
+	if err != nil {
+		log.Print("Не удалось удалить запись")
+	}
+	_, err = DB.Exec("UPDATE scheduler SET state = 0 WHERE id = ?", lessonID)
+	return err
+}

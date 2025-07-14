@@ -14,7 +14,7 @@ const AdminID int = 288848928
 func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 	rows := [][]tgbotapi.KeyboardButton{
 		{
-			tgbotapi.NewKeyboardButton("📅 Список занятий"),
+			tgbotapi.NewKeyboardButton("📅 Свободные занятия"),
 			tgbotapi.NewKeyboardButton("✅ Записаться"),
 		},
 		{
@@ -25,8 +25,8 @@ func MainMenu(userID int) tgbotapi.ReplyKeyboardMarkup {
 
 	if userID == AdminID {
 		rows = append(rows, tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("➕ Добавить занятие"),
-			tgbotapi.NewKeyboardButton("➖ Удалить доступное занятие"),
+			tgbotapi.NewKeyboardButton("Добавить занятие"),
+			tgbotapi.NewKeyboardButton("Удалить доступное занятие"),
 		))
 	}
 	return tgbotapi.NewReplyKeyboard(rows...)

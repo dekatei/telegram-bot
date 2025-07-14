@@ -20,13 +20,14 @@ type Lesson struct {
 	State string
 }
 
+// инициализируем таблицу с уроками
 func InitDB(envDBFILE string) error {
 	var err error
 	var appPath string
 	if envDBFILE != "" {
 		appPath = envDBFILE
 	} else {
-		appPath, err = os.Getwd() //не смогла реализовать через os.Executable()
+		appPath, err = os.Getwd()
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -54,7 +55,7 @@ func InitDB(envDBFILE string) error {
        		name TEXT NOT NULL DEFAULT "",
 			title TEXT NOT NULL DEFAULT "",
         	date TEXT NOT NULL DEFAULT "",
-			state BOOLEAN);`)
+			state BOOLEAN DEFAULT 0);`)
 		if err != nil {
 			log.Fatal(err)
 			return err

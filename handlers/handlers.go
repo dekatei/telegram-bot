@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -38,16 +39,16 @@ func StartBot(bot *tgbotapi.BotAPI) {
 			msg.ReplyMarkup = buttons.MainMenu(userID)
 			bot.Send(msg)
 
-		case "➕ Добавить занятие":
+		case "Добавить занятие":
 			if userID != adminID {
 				bot.Send(tgbotapi.NewMessage(chatID, "⛔️ Только для администратора."))
 				break
 			}
 			AddState[userID] = map[string]interface{}{}
 			msg := tgbotapi.NewMessage(chatID, "Выберите дату:")
-			msg.ReplyMarkup = dateKeyboard("add_date")
+			msg.ReplyMarkup = dateKeyboardForAdd("add_date")
 			bot.Send(msg)
-		case "➖ Удалить доступное занятие":
+		case "Удалить доступное занятие":
 			if userID != adminID {
 				bot.Send(tgbotapi.NewMessage(chatID, "⛔️ Только для администратора."))
 				break
@@ -70,7 +71,7 @@ func StartBot(bot *tgbotapi.BotAPI) {
 			msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 			bot.Send(msg)
 
-		case "📅 Список занятий":
+		case "📅 Свободные занятия":
 			text, err := buttons.LessonsListMessage()
 			if err != nil {
 				text = "Ошибка при получении занятий."
@@ -79,7 +80,7 @@ func StartBot(bot *tgbotapi.BotAPI) {
 
 		case "✅ Записаться":
 			msg := tgbotapi.NewMessage(chatID, "Выберите день:")
-			msg.ReplyMarkup = dateKeyboard("register_date")
+			msg.ReplyMarkup = dateKeyboardForRegistration("register_date")
 			bot.Send(msg)
 
 		case "👤 Мои занятия":
@@ -88,6 +89,31 @@ func StartBot(bot *tgbotapi.BotAPI) {
 				text = "Ошибка при получении занятий."
 			}
 			bot.Send(tgbotapi.NewMessage(chatID, text))
+		case "❌ Отменить запись":
+			var lessons []base.Lesson
+			var err error
+			if userID == adminID {
+				lessons, err = base.GetAdminLessons()
+			} else {
+				lessons, err = base.GetUserLessons(userID)
+			}
+
+			if err != nil || len(lessons) == 0 {
+				bot.Send(tgbotapi.NewMessage(chatID, "У вас нет записей."))
+				break
+			}
+
+			var rows [][]tgbotapi.InlineKeyboardButton
+			for _, l := range lessons {
+				label := fmt.Sprintf("%s — %s", l.Title, l.Date[11:])
+				callbackData := fmt.Sprintf("cancel_lesson:%d", l.ID)
+				rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(label, callbackData)))
+			}
+
+			msg := tgbotapi.NewMessage(chatID, "Выберите занятие для удаления:")
+			msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+			bot.Send(msg)
 
 		default:
 			bot.Send(tgbotapi.NewMessage(chatID, "Выберите действие из меню."))
@@ -104,24 +130,33 @@ func formatDate(d time.Time) string {
 }
 
 // dateKeyboard возвращает клавиатуру выбора дня с доступными уроками
-func dateKeyboard(prefix string) tgbotapi.InlineKeyboardMarkup {
+func dateKeyboardForRegistration(prefix string) tgbotapi.InlineKeyboardMarkup {
 	dates, err := base.GetDatesWithAvailableLessons()
-	if err != nil || len(dates) == 0 {
-		return tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Нет доступных дат", "none"),
-			),
-		)
+	if err != nil {
+		log.Println("Ошибка получения доступных дат:", err)
+		return tgbotapi.NewInlineKeyboardMarkup()
 	}
 
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, d := range dates {
-		//label := formatDate(d) // "09 июля"
-		data := fmt.Sprintf("%s:%s", prefix, d)
+		data := fmt.Sprintf("%s:%s", prefix, d) // Передаём дату строкой
 		btn := tgbotapi.NewInlineKeyboardButtonData(d, data)
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
 	}
 
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+func dateKeyboardForAdd(prefix string) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	today := time.Now()
+	for i := 0; i < 7; i++ {
+		date := today.AddDate(0, 0, i)
+		formatted := formatDate(date) // "09 июля"
+		data := fmt.Sprintf("%s:%d", prefix, i)
+		btn := tgbotapi.NewInlineKeyboardButtonData(formatted, data)
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
+	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
@@ -272,8 +307,7 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		delete(AddState, userID)
 
 	case strings.HasPrefix(data, "register_date:"):
-		days, _ := strconv.Atoi(strings.TrimPrefix(data, "register_date:"))
-		dateStr := formatDate(time.Now().AddDate(0, 0, days))
+		dateStr := strings.TrimPrefix(data, "register_date:")
 
 		lessons, err := base.GetLessonsByDate(dateStr)
 		if err != nil || len(lessons) == 0 {
@@ -283,7 +317,8 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 		var rows [][]tgbotapi.InlineKeyboardButton
 		for _, l := range lessons {
-			label := fmt.Sprintf("%s — %s", l.Title, l.Date[11:])
+			timeOnly := l.Date[11:] // "18:00" если формат "2006-01-02 15:04"
+			label := fmt.Sprintf("%s — %s", l.Title, timeOnly)
 			callbackData := fmt.Sprintf("register:%d", l.ID)
 			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(label, callbackData)))
@@ -315,7 +350,23 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		} else {
 			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "✅ Урок успешно удалён."))
 		}
+	case strings.HasPrefix(data, "cancel_lesson:"):
+		idStr := strings.TrimPrefix(data, "cancel_lesson:")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "❌ Неверный ID."))
+			return
+		}
+
+		err = base.CancelUserRegistration(userID, id)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "❌ Ошибка при отмене: "+err.Error()))
+		} else {
+			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "✅ Урок успешно отменён."))
+		}
+
 	}
 
 	bot.AnswerCallbackQuery(tgbotapi.NewCallback(cb.ID, ""))
+
 }
