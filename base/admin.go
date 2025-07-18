@@ -11,7 +11,7 @@ const textAdmin = "Получен запрос от админа "
 
 func AddLesson(name, title, date string) error {
 	log.Printf(textAdmin + "на добавление урока")
-	_, err := DB.Exec(`INSERT INTO scheduler (name, title, date, state) VALUES (?, ?, ?, ?)`, name, title, date, false)
+	_, err := DB.Exec(`INSERT INTO scheduler (name, title, date) VALUES (?, ?, ?)`, name, title, date)
 	return err
 }
 
@@ -22,7 +22,13 @@ func DeleteLesson(id int) error {
 }
 
 func GetAdminLessons() ([]Lesson, error) {
-	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 1 ORDER BY date")
+	query := `
+	SELECT s.id, s.name, s.title, s.date
+	FROM scheduler s
+	INNER JOIN registrations r ON s.id = r.lesson_id
+	ORDER BY s.date ASC
+	`
+	rows, err := DB.Query(query)
 	if err != nil {
 		return nil, err
 	}

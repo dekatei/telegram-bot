@@ -140,7 +140,9 @@ func dateKeyboardForRegistration(prefix string) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, d := range dates {
 		data := fmt.Sprintf("%s:%s", prefix, d) // Передаём дату строкой
-		btn := tgbotapi.NewInlineKeyboardButtonData(d, data)
+		parsed, _ := time.Parse("2006-01-02", d)
+		label := parsed.Format("02.01") // или "02 января"
+		btn := tgbotapi.NewInlineKeyboardButtonData(label, data)
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
 	}
 
@@ -168,9 +170,9 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	switch {
 	case strings.HasPrefix(data, "add_date:"):
 		days, _ := strconv.Atoi(strings.TrimPrefix(data, "add_date:"))
-		date := formatDate(time.Now().AddDate(0, 0, days))
+		selectedDate := time.Now().AddDate(0, 0, days)
 		AddState[userID] = map[string]interface{}{
-			"date":  date,
+			"date":  selectedDate,
 			"times": []string{},
 		}
 
@@ -288,21 +290,26 @@ func HandleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, "⚠️ Данные не найдены, начните сначала."))
 			return
 		}
-		date := info["date"].(string)
+
 		times := info["times"].([]string)
 		var messages []string
 
+		date := info["date"].(time.Time)
 		for _, t := range times {
-			fullDate := fmt.Sprintf("%s %s", date, t)
-			err := base.AddLesson("Занятие", typeStr, fullDate)
+			fullDateTimeStr := fmt.Sprintf("%s %s", date.Format("2006-01-02"), t)
+			fullDateTime, err := time.Parse("2006-01-02 15:04", fullDateTimeStr)
 			if err != nil {
-				messages = append(messages, fmt.Sprintf("❌ %s — %s", t, err.Error()))
+				messages = append(messages, fmt.Sprintf("❌ %s — неверный формат даты", t))
+				continue
+			}
+			err = base.AddLesson("Занятие", typeStr, fullDateTime.Format("2006-01-02 15:04:05"))
+			if err != nil {
+				messages = append(messages, fmt.Sprintf("❌ %s — ошибка: %v", t, err))
 			} else {
 				messages = append(messages, fmt.Sprintf("✅ %s", t))
 			}
 		}
-
-		result := "Добавлены занятия на " + date + " в :\n" + strings.Join(messages, "\n")
+		result := "Добавлены занятия на " + date.Format("02.01.2006") + " в :\n" + strings.Join(messages, "\n")
 		bot.Send(tgbotapi.NewMessage(cb.Message.Chat.ID, result))
 		delete(AddState, userID)
 

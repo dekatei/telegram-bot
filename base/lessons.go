@@ -9,7 +9,14 @@ import (
 // SQL запросы от учеников
 // получаем доступные для записи уроки
 func GetAvailableLessons() ([]Lesson, error) {
-	rows, err := DB.Query("SELECT id, name, title, date FROM scheduler WHERE state = 0 ORDER BY date ASC")
+	query := `
+	SELECT s.id, s.name, s.title, s.date
+	FROM scheduler s
+	LEFT JOIN registrations r ON s.id = r.lesson_id
+	WHERE r.lesson_id IS NULL
+	ORDER BY s.date ASC
+	`
+	rows, err := DB.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -23,16 +30,20 @@ func GetAvailableLessons() ([]Lesson, error) {
 		}
 		lessons = append(lessons, l)
 	}
-
 	return lessons, nil
 }
 
+// получаем список дат, в которых есть свободные уроки
 func GetDatesWithAvailableLessons() ([]string, error) {
 	rows, err := DB.Query(`
-		SELECT DISTINCT date
+		SELECT DISTINCT DATE(date) as day
 		FROM scheduler
-		WHERE state = 0
-		ORDER BY date ASC
+		WHERE id IN (
+			SELECT id FROM scheduler
+			EXCEPT
+			SELECT lesson_id FROM registrations
+		)
+		ORDER BY day ASC
 	`)
 	if err != nil {
 		return nil, err
@@ -45,29 +56,37 @@ func GetDatesWithAvailableLessons() ([]string, error) {
 		if err := rows.Scan(&date); err != nil {
 			return nil, err
 		}
+		// Опционально: форматировать дату, если нужно отображение "DD.MM"
 		dates = append(dates, date)
 	}
 	return dates, nil
 }
 
-// добавляем ученика в таблицу с зарегистрированным уроком и устанавливаем статус недоступный урок в общей таблице
+// записываем пользователя на урок, если урок ещё свободен
 func RegisterUserToLesson(userID int, lessonID int) error {
-	_, err := DB.Exec("INSERT OR IGNORE INTO registrations (user_id, lesson_id) VALUES (?, ?)", userID, lessonID)
+	_, err := DB.Exec(`
+		INSERT INTO registrations (user_id, lesson_id)
+		SELECT ?, ?
+		WHERE NOT EXISTS (
+			SELECT 1 FROM registrations WHERE lesson_id = ?
+		)
+	`, userID, lessonID, lessonID)
+
 	if err != nil {
-		log.Print("Не удалось добавить запись")
+		log.Println("Ошибка при регистрации пользователя:", err)
 	}
-	_, err = DB.Exec("UPDATE scheduler SET state = 1 WHERE id = ?", lessonID)
+
 	return err
 }
 
-// получаем зарегистрированные уроки ученика
+// получаем уроки, на которые записан пользователь
 func GetUserLessons(userID int) ([]Lesson, error) {
 	query := `
-	SELECT l.id, l.name, l.title, l.date
-	FROM scheduler l
-	INNER JOIN registrations r ON r.lesson_id = l.id
+	SELECT s.id, s.name, s.title, s.date
+	FROM scheduler s
+	INNER JOIN registrations r ON r.lesson_id = s.id
 	WHERE r.user_id = ?
-	ORDER BY l.date ASC
+	ORDER BY s.date ASC
 	`
 	rows, err := DB.Query(query, userID)
 	if err != nil {
@@ -86,13 +105,16 @@ func GetUserLessons(userID int) ([]Lesson, error) {
 	return lessons, nil
 }
 
+// получаем свободные уроки на определенную дату
 func GetLessonsByDate(date string) ([]Lesson, error) {
-	rows, err := DB.Query(`
-		SELECT id, name, title, date 
-		FROM scheduler 
-		WHERE date LIKE ? AND state = 0
-		ORDER BY date ASC
-	`, date+"%")
+	query := `
+	SELECT s.id, s.name, s.title, s.date
+	FROM scheduler s
+	LEFT JOIN registrations r ON s.id = r.lesson_id
+	WHERE r.lesson_id IS NULL AND s.date LIKE ?
+	ORDER BY s.date ASC
+	`
+	rows, err := DB.Query(query, date+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -109,14 +131,15 @@ func GetLessonsByDate(date string) ([]Lesson, error) {
 	return lessons, nil
 }
 
+// отменяем регистрацию пользователя на урок
 func CancelUserRegistration(userID, lessonID int) error {
 	_, err := DB.Exec(`
 		DELETE FROM registrations 
 		WHERE user_id = ? AND lesson_id = ?
 	`, userID, lessonID)
+
 	if err != nil {
-		log.Print("Не удалось удалить запись")
+		log.Print("Не удалось удалить запись:", err)
 	}
-	_, err = DB.Exec("UPDATE scheduler SET state = 0 WHERE id = ?", lessonID)
 	return err
 }

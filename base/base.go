@@ -17,7 +17,6 @@ type Lesson struct {
 	Name  string
 	Title string
 	Date  string
-	State string
 }
 
 // инициализируем таблицу с уроками
@@ -54,8 +53,7 @@ func InitDB(envDBFILE string) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
        		name TEXT NOT NULL DEFAULT "",
 			title TEXT NOT NULL DEFAULT "",
-        	date TEXT NOT NULL DEFAULT "",
-			state BOOLEAN DEFAULT 0);`)
+        	date DATETIME NOT NULL DEFAULT "");`)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -70,7 +68,6 @@ func InitDB(envDBFILE string) error {
 	}
 	_, err = DB.Exec(`
 	CREATE TABLE IF NOT EXISTS registrations (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id INTEGER,
 		lesson_id INTEGER,
 		UNIQUE(user_id, lesson_id)
